@@ -1,25 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
 </head>
 <style>
-    body{
+    body {
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
+        overflow: hidden;
     }
-    .container{
+
+    .container {
         width: 100vw;
         height: 100vh;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
+        perspective: 600px;
     }
+
     .joystick {
         width: 100px;
         height: 100px;
@@ -29,6 +34,7 @@
         margin-bottom: 60px;
         box-shadow: 1px 1px 10px #ff0000;
     }
+
     .head-joystick {
         width: 50px;
         height: 50px;
@@ -38,22 +44,24 @@
         box-shadow: 1px 1px 10px #ffffff;
         margin: 25px;
     }
+
     .ball-container {
         display: flex;
-        width: 500px;
-        height: 400px;
         border-radius: 5px;
         box-shadow: 1px 1px 10px #00d9ff;
         perspective: 600px;
         position: relative;
+        transform-style: preserve-3d;
     }
-    .ball{
+
+    .ball {
         background-color: #ff0000;
         border-radius: 50%;
         position: absolute;
         box-shadow: 1px 1px 10px #ffffff;
     }
 </style>
+
 <body>
     <div class="container" id="container">
         <div class="joystick" id="joystick">
@@ -69,40 +77,93 @@
         const headJoystick = document.getElementById('head-joystick');
         const ballContainer = document.getElementById('ball-container');
         const ball = document.getElementById('ball');
-        let mouseStartX, mouseStartY, mouseEndX, mouseEndY, balls, walls;
+        let mouseStartX, mouseStartY, mouseEndX, mouseEndY, walls;
         let gameInProgress = false;
-        walls=[
-            {column: 2, row: 2},
-            {column: 8, row: 2},
-        ].map(wall=>({
-            column: wall.column*10,
+        const ballSize = 50;
+        let balls = [];
+        const ballContainerWidth = 850;
+        const ballContainerHeight = 500;
+        ballContainer.style.cssText = `
+            width: ${ballContainerWidth}px;
+            height: ${ballContainerHeight}px;
+        `;
+
+        balls.push(
+            { x: 10, y: 10, z: 10 , directionX: 1, directionY: 1},
+            { x: ballContainerWidth - 10, y: 10, z: 10 , directionX: 1, directionY: 1},
+            { x: 10, y: ballContainerHeight - 10, z: 10 , directionX: 1, directionY: 1},
+            { x: ballContainerWidth - 10, y: ballContainerHeight - 10, z: 10 , directionX: 1, directionY: 1},
+        );
+        function render() {
+            balls.forEach((ball, index) => {
+                const ballElement = document.createElement('div');
+                ballElement.className = 'ball';
+                ballElement.directionX = 1;
+                ballElement.directionY = 1;
+                ballElement.style.cssText = `
+                    background-color: #ff0000;
+                    border-radius: 50%;
+                    width: ${ballSize}px;
+                    height: ${ballSize}px;
+                    position: absolute;
+                    left: ${ball.directionX}px;
+                    top: ${ball.directionY}px;
+                    transform: translateZ(${ball.z}px);
+                `;
+                ballContainer.appendChild(ballElement);
+            });
+        }
+        function update() {
+            balls.forEach((ball, index) => {
+                ball.directionX += 1
+                ball.directionY += 1
+                if (ball.x < 0 || ball.x > ballContainerWidth-ballSize) {
+                    ball.directionX *= -1;
+                }
+                if (ball.y < 0 || ball.y > ballContainerHeight-ballSize) {
+                    ball.directionY *= -1;
+                }
+            });
+        }
+        function loop() {
+            ballContainer.innerHTML = '';
+            render();
+            update();
+            requestAnimationFrame(loop);
+        }
+        loop();
+        walls = [
+            { column: 2, row: 2 },
+            { column: 8, row: 2 },
+        ].map(wall => ({
+            column: wall.column * 10,
             row: wall.row,
-            x: (wall.column-1)*50,
-            y: (wall.row-1)*50,
+            x: (wall.column - 1) * 50,
+            y: (wall.row - 1) * 50,
             width: 50,
             height: 50,
         }));
-        function minmax(value, limit){
-            if(value < -limit){
+        function minmax(value, limit) {
+            if (value < -limit) {
                 return -limit;
-            }else if(value > limit){
+            } else if (value > limit) {
                 return limit;
-            }else{
+            } else {
                 return value;
             }
         }
-        headJoystick.addEventListener('mousedown', e=>{
+        headJoystick.addEventListener('mousedown', e => {
             e.preventDefault();
-            if(!gameInProgress){
+            if (!gameInProgress) {
                 mouseStartX = e.clientX;
                 mouseStartY = e.clientY;
                 console.log(mouseStartX, mouseStartY);
                 gameInProgress = true;
             }
         })
-        window.addEventListener('mousemove', e=>{
+        window.addEventListener('mousemove', e => {
             e.preventDefault();
-            if(gameInProgress){
+            if (gameInProgress) {
                 mouseDeltaX = minmax(e.clientX - mouseStartX, 50);
                 mouseDeltaY = minmax(e.clientY - mouseStartY, 50);
                 headJoystick.style.cssText = `
@@ -111,18 +172,27 @@
                 `;
                 console.log(mouseDeltaX, mouseDeltaY);
                 gameInProgress = true;
+                ballContainer.style.cssText = `
+                    perspective: 600px;
+                    transform: rotateX(${mouseDeltaY}deg) rotateY(${mouseDeltaX}deg);
+                `;
             }
         })
-        window.addEventListener('mouseup', e=>{
+        window.addEventListener('mouseup', e => {
             e.preventDefault();
-            if(gameInProgress){
+            if (gameInProgress) {
                 headJoystick.style.cssText = `
                     left: 0px;
                     top: 0px;
                 `;
                 gameInProgress = false;
+                ballContainer.style.cssText = `
+                    perspective: 600px;
+                    transform: rotateX(0deg) rotateY(0deg);
+                `;
             }
         })
     </script>
 </body>
+
 </html>
